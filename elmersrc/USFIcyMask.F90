@@ -1,3 +1,10 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!     A user function that returns:
+!       +1 if all groundemask > -0.5 (element fully grounded)
+!       +2 if all groundemask < -0.5 (element fully floating)
+!       0 otherwise (partially grounded)
+!       -1 if all (h <= MinH) == deglaciated element
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       FUNCTION IcyMask(Model,nodenumber,VarIn) RESULT(VarOut)
       USE DefUtils
       implicit none

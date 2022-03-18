@@ -1,0 +1,153 @@
+! the name of the mesh directory
+$MESH="MESH"
+
+!##########################################################
+! ####  Physical Parameters
+!##########################################################
+!## Conversion factor year to seconds
+$yearinsec = 31556926.0
+!## Ice density
+$rhoi = 910.0/(1.0e6*yearinsec^2)
+!## Sea level elevation
+$zsl=0.0
+!## Sea water density
+$rhow = 1028.0/(1.0e6*yearinsec^2)
+
+!## Min threshold value for Ice thickness (Real)
+$HMin=0.1
+
+! ## TOPOGRAPHY (read <thickness> and <bed>)
+$TOPOGRAPHY_DATA="../DATA/GREENLAND/BedMachineGreenland-2021-04-20.nc"
+$VELOCITY_DATA="../DATA/GREENLAND/greenland_vel_mosaic250_v1.nc"
+!#######################################################
+!#######################################################
+Header
+  Mesh DB "." "$MESH$"
+End
+!#######################################################
+!#######################################################
+Constants
+  sea level = Real $zsl
+  water density = Real $rhow
+End
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Simulation
+  Coordinate System  = Cartesian 
+  Simulation Type = Steady State
+
+  Steady State Min Iterations = 1
+  Steady State Max Iterations = 1
+
+  Output File = "RUN0_.result"
+  Post File = "RUN0_.vtu"
+  max output level = 3
+End
+!#######################################################
+!#######################################################
+Body 1
+  Equation = 1
+  Material = 1
+  Body Force = 1
+End
+!#######################################################
+Body Force 1
+  IcyMask = Variable H
+    Real procedure "USFIcyMask" "IcyMask"
+End
+!#######################################################
+Material 1
+! Material properties
+  SSA Mean Density = Real $rhoi
+
+  Min H = Real $HMin
+End
+!#######################################################
+!#######################################################
+Solver 1
+  Equation = Reader
+    Procedure = "GridDataReader" "GridDataReader"
+    Variable = -nooutput dumy
+   
+   Read full array = Logical True 
+
+!---- NOTE: File is case sensitive, String is not!
+   Filename = File "$TOPOGRAPHY_DATA$"
+
+   X Dim Name = String "x"
+   Y Dim Name = String "y"
+!--- 
+  Variable 1 = File "thickness"
+  Target Variable 1 = String "H"
+  Exported Variable 1 = H
+  Valid Min Value 1 = Real $HMin
+
+  Variable 2 = File "bed"
+  Target Variable 2 = String "bedrock"
+  Exported Variable 2 = bedrock
+End
+
+Solver 2
+  Equation = Reader2
+    Procedure = "GridDataReader" "GridDataReader"
+    Variable = -nooutput dumy
+  
+   Read full array = Logical True
+
+!---- NOTE: File is case sensitive, String is not!
+   Filename = File "$VELOCITY_DATA$"
+
+   X Dim Name = String "x"
+   Y Dim Name = String "y"
+!--- 
+  Variable 1 = File "vx"
+  Target Variable 1 = String "Uobs 1"
+
+  Variable 2 = File "vy"
+  Target Variable 2 = String "Uobs 2"
+
+  Exported Variable 1 = -dofs 2 "Uobs"
+
+End
+
+Solver 3
+   Equation = "Flotation"
+      Variable = GroundedMask
+      Procedure = "ElmerIceSolvers" "Flotation"
+
+   Exported Variable 1 = Zs
+   Exported Variable 2 = Zb
+
+  ! create an element variable; see in body forces
+   Update Exported Variables = Logical True
+   Exported Variable 3 = -elem "IcyMask"
+End
+
+Solver 4
+   Equation = "NetcdfOutPutSolve"
+   Procedure = "NetcdfUGRIDOutputSolver" "NetcdfOutputSolver"
+   Variable = -nooutput "test"
+
+   Optimize Bandwidth = Logical False
+
+   OutPut Directory = File "UGRIDOutPut"
+   Output File Name = "Case"
+
+   Scalar Field 1 = String "IcyMask"
+   Scalar Field 2 = String "bedrock"
+   Scalar Field 3 = String "zb"
+   Scalar Field 4 = String "zs"
+   Scalar Field 5 = String "Uobs 1"
+   Scalar Field 6 = String "Uobs 2"
+
+   Compute LonLat = Logical True
+   Projection = File "+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+
+End
+
+
+
+!#######################################################
+Equation 1
+  Active Solvers(4) = 1 2 3 4
+End
+
